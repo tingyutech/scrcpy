@@ -36,7 +36,7 @@ public class Options {
     private int audioBitRate = 128000;
     private float maxFps;
     private float angle;
-    private boolean tunnelForward;
+    private boolean tunnelForward = false;
     private Rect crop;
     private boolean control = true;
     private int displayId;

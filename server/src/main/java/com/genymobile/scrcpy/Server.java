@@ -97,6 +97,8 @@ public final class Server {
         boolean audio = options.getAudio();
         boolean sendDummyByte = options.getSendDummyByte();
 
+        Ln.i("start server, control: " + control + " video: " + video + " audio: " + audio);
+
         Workarounds.apply();
 
         List<AsyncProcessor> asyncProcessors = new ArrayList<>();

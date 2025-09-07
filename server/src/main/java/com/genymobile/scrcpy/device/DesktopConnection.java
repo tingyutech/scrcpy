@@ -2,6 +2,7 @@ package com.genymobile.scrcpy.device;
 
 import com.genymobile.scrcpy.control.ControlChannel;
 import com.genymobile.scrcpy.util.IO;
+import com.genymobile.scrcpy.util.Ln;
 import com.genymobile.scrcpy.util.StringUtils;
 
 import android.net.LocalServerSocket;
@@ -39,6 +40,8 @@ public final class DesktopConnection implements Closeable {
     }
 
     private static LocalSocket connect(String abstractName) throws IOException {
+        Ln.i("connectin to " + abstractName);
+
         LocalSocket localSocket = new LocalSocket();
         localSocket.connect(new LocalSocketAddress(abstractName));
         return localSocket;
@@ -90,25 +93,30 @@ public final class DesktopConnection implements Closeable {
                 }
             } else {
                 if (video) {
-                    videoSocket = connect(socketName + "_controler");
+                    videoSocket = connect(socketName + "_media");
                 }
+
                 if (audio) {
                     audioSocket = connect(socketName + "_media");
                 }
+
                 if (control) {
-                    controlSocket = connect(socketName + "_media");
+                    controlSocket = connect(socketName + "_controler");
                 }
             }
         } catch (IOException | RuntimeException e) {
             if (videoSocket != null) {
                 videoSocket.close();
             }
+
             if (audioSocket != null) {
                 audioSocket.close();
             }
+
             if (controlSocket != null) {
                 controlSocket.close();
             }
+
             throw e;
         }
 
@@ -116,12 +124,6 @@ public final class DesktopConnection implements Closeable {
     }
 
     private LocalSocket getFirstSocket() {
-        if (videoSocket != null) {
-            return videoSocket;
-        }
-        if (audioSocket != null) {
-            return audioSocket;
-        }
         return controlSocket;
     }
 

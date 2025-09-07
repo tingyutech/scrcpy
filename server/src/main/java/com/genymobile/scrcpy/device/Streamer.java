@@ -3,6 +3,7 @@ package com.genymobile.scrcpy.device;
 import com.genymobile.scrcpy.audio.AudioCodec;
 import com.genymobile.scrcpy.util.Codec;
 import com.genymobile.scrcpy.util.IO;
+import com.genymobile.scrcpy.util.Ln;
 import com.genymobile.scrcpy.video.VideoCodec;
 
 import android.media.MediaCodec;
@@ -19,15 +20,15 @@ public final class Streamer {
     private static final long PACKET_FLAG_KEY_FRAME = 1L << 62;
     private static final int MEDIA_STREAM_TYPE_VIDEO = 0;
     private static final int MEDIA_STREAM_TYPE_VIDEO_METADATA = 1;
-    private static final int MEDIA_STREAM_TYPE_AUDIO = 0;
-    private static final int MEDIA_STREAM_TYPE_AUDIO_METADATA = 1;
+    private static final int MEDIA_STREAM_TYPE_AUDIO = 2;
+    private static final int MEDIA_STREAM_TYPE_AUDIO_METADATA = 3;
 
     private final FileDescriptor fd;
     private final Codec codec;
     private final boolean sendCodecMeta;
     private final boolean sendFrameMeta;
 
-    private final ByteBuffer headerBuffer = ByteBuffer.allocate(16);
+    private final ByteBuffer headerBuffer = ByteBuffer.allocate(17);
 
     public Streamer(FileDescriptor fd, Codec codec, boolean sendCodecMeta, boolean sendFrameMeta) {
         this.fd = fd;
@@ -42,9 +43,9 @@ public final class Streamer {
 
     public void writeAudioHeader(int sampleBits, int sampleRate, int channels) throws IOException {
         if (sendCodecMeta) {
-            ByteBuffer buffer = ByteBuffer.allocate(20);
-            buffer.putInt(20);
-            buffer.putInt(MEDIA_STREAM_TYPE_AUDIO_METADATA);
+            ByteBuffer buffer = ByteBuffer.allocate(21);
+            buffer.putInt(17);
+            buffer.put((byte) MEDIA_STREAM_TYPE_AUDIO_METADATA);
             buffer.putInt(codec.getRawId());
             buffer.putInt(sampleBits);
             buffer.putInt(sampleRate);
@@ -56,9 +57,9 @@ public final class Streamer {
 
     public void writeVideoHeader(Size videoSize, int bitrate, int framerate, int gopSize) throws IOException {
         if (sendCodecMeta) {
-            ByteBuffer buffer = ByteBuffer.allocate(28);
-            buffer.putInt(28);
-            buffer.putInt(MEDIA_STREAM_TYPE_VIDEO_METADATA);
+            ByteBuffer buffer = ByteBuffer.allocate(29);
+            buffer.putInt(25);
+            buffer.put((byte)MEDIA_STREAM_TYPE_VIDEO_METADATA);
             buffer.putInt(codec.getRawId());
             buffer.putInt(bitrate);
             buffer.putInt(videoSize.getWidth());
@@ -110,19 +111,19 @@ public final class Streamer {
         headerBuffer.clear();
 
         int flags = 0;
-        int size = packetSize + 16;
+        int size = packetSize + 13;
         boolean isVideo = codec == VideoCodec.AV1 || codec == VideoCodec.H264 || codec == VideoCodec.H265;
 
         if (config) {
-            flags |= 2;
+            flags += 2;
         }
 
         if (keyFrame) {
-            flags |= 1;
+            flags += 1;
         }
 
         headerBuffer.putInt(size);
-        headerBuffer.putInt(isVideo ? MEDIA_STREAM_TYPE_VIDEO : MEDIA_STREAM_TYPE_AUDIO);
+        headerBuffer.put(isVideo ? (byte)MEDIA_STREAM_TYPE_VIDEO : (byte)MEDIA_STREAM_TYPE_AUDIO);
         headerBuffer.putInt(flags);
         headerBuffer.putLong(pts);
         headerBuffer.flip();
