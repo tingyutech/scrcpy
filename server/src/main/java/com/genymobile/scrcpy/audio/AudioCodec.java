@@ -40,6 +40,17 @@ public enum AudioCodec implements Codec {
         return mimeType;
     }
 
+    @Override
+    public int getRawId() {
+        if (this.name.equals("aac")) {
+            return 1;
+        } else if (this.name.equals("flac")) {
+            return 4;
+        } else {
+            return 5;
+        }
+    }
+
     public static AudioCodec findByName(String name) {
         for (AudioCodec codec : values()) {
             if (codec.name.equals(name)) {

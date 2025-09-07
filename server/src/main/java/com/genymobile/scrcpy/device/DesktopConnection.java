@@ -90,13 +90,13 @@ public final class DesktopConnection implements Closeable {
                 }
             } else {
                 if (video) {
-                    videoSocket = connect(socketName);
+                    videoSocket = connect(socketName + "_controler");
                 }
                 if (audio) {
-                    audioSocket = connect(socketName);
+                    audioSocket = connect(socketName + "_media");
                 }
                 if (control) {
-                    controlSocket = connect(socketName);
+                    controlSocket = connect(socketName + "_media");
                 }
             }
         } catch (IOException | RuntimeException e) {

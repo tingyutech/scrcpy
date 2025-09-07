@@ -13,6 +13,8 @@ public interface Codec {
 
     int getId();
 
+    int getRawId();
+
     String getName();
 
     String getMimeType();

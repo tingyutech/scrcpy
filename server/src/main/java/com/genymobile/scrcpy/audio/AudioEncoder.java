@@ -115,7 +115,7 @@ public final class AudioEncoder implements AsyncProcessor {
     }
 
     private void outputThread(MediaCodec mediaCodec) throws IOException, InterruptedException {
-        streamer.writeAudioHeader();
+        streamer.writeAudioHeader(16, SAMPLE_RATE, CHANNELS);
 
         while (!Thread.currentThread().isInterrupted()) {
             OutputTask task = outputTasks.take();

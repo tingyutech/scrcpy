@@ -41,6 +41,15 @@ public enum VideoCodec implements Codec {
         return mimeType;
     }
 
+    @Override
+    public int getRawId() {
+        if (this.name.equals("h265")) {
+            return 2;
+        } else {
+            return 1; // else is h264
+        }
+    }
+
     public static VideoCodec findByName(String name) {
         for (VideoCodec codec : values()) {
             if (codec.name.equals(name)) {

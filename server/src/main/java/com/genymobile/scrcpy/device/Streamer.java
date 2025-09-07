@@ -3,6 +3,7 @@ package com.genymobile.scrcpy.device;
 import com.genymobile.scrcpy.audio.AudioCodec;
 import com.genymobile.scrcpy.util.Codec;
 import com.genymobile.scrcpy.util.IO;
+import com.genymobile.scrcpy.video.VideoCodec;
 
 import android.media.MediaCodec;
 
@@ -16,13 +17,17 @@ public final class Streamer {
 
     private static final long PACKET_FLAG_CONFIG = 1L << 63;
     private static final long PACKET_FLAG_KEY_FRAME = 1L << 62;
+    private static final int MEDIA_STREAM_TYPE_VIDEO = 0;
+    private static final int MEDIA_STREAM_TYPE_VIDEO_METADATA = 1;
+    private static final int MEDIA_STREAM_TYPE_AUDIO = 0;
+    private static final int MEDIA_STREAM_TYPE_AUDIO_METADATA = 1;
 
     private final FileDescriptor fd;
     private final Codec codec;
     private final boolean sendCodecMeta;
     private final boolean sendFrameMeta;
 
-    private final ByteBuffer headerBuffer = ByteBuffer.allocate(12);
+    private final ByteBuffer headerBuffer = ByteBuffer.allocate(16);
 
     public Streamer(FileDescriptor fd, Codec codec, boolean sendCodecMeta, boolean sendFrameMeta) {
         this.fd = fd;
@@ -35,21 +40,31 @@ public final class Streamer {
         return codec;
     }
 
-    public void writeAudioHeader() throws IOException {
+    public void writeAudioHeader(int sampleBits, int sampleRate, int channels) throws IOException {
         if (sendCodecMeta) {
-            ByteBuffer buffer = ByteBuffer.allocate(4);
-            buffer.putInt(codec.getId());
+            ByteBuffer buffer = ByteBuffer.allocate(20);
+            buffer.putInt(20);
+            buffer.putInt(MEDIA_STREAM_TYPE_AUDIO_METADATA);
+            buffer.putInt(codec.getRawId());
+            buffer.putInt(sampleBits);
+            buffer.putInt(sampleRate);
+            buffer.putInt(channels);
             buffer.flip();
             IO.writeFully(fd, buffer);
         }
     }
 
-    public void writeVideoHeader(Size videoSize) throws IOException {
+    public void writeVideoHeader(Size videoSize, int bitrate, int framerate, int gopSize) throws IOException {
         if (sendCodecMeta) {
-            ByteBuffer buffer = ByteBuffer.allocate(12);
-            buffer.putInt(codec.getId());
+            ByteBuffer buffer = ByteBuffer.allocate(28);
+            buffer.putInt(28);
+            buffer.putInt(MEDIA_STREAM_TYPE_VIDEO_METADATA);
+            buffer.putInt(codec.getRawId());
+            buffer.putInt(bitrate);
             buffer.putInt(videoSize.getWidth());
             buffer.putInt(videoSize.getHeight());
+            buffer.putInt(framerate);
+            buffer.putInt(gopSize);
             buffer.flip();
             IO.writeFully(fd, buffer);
         }
@@ -63,7 +78,9 @@ public final class Streamer {
         if (error) {
             code[3] = 1;
         }
-        IO.writeFully(fd, code, 0, code.length);
+
+        // not supports this frame
+        // IO.writeFully(fd, code, 0, code.length);
     }
 
     public void writePacket(ByteBuffer buffer, long pts, boolean config, boolean keyFrame) throws IOException {
@@ -92,19 +109,24 @@ public final class Streamer {
     private void writeFrameMeta(FileDescriptor fd, int packetSize, long pts, boolean config, boolean keyFrame) throws IOException {
         headerBuffer.clear();
 
-        long ptsAndFlags;
+        int flags = 0;
+        int size = packetSize + 16;
+        boolean isVideo = codec == VideoCodec.AV1 || codec == VideoCodec.H264 || codec == VideoCodec.H265;
+
         if (config) {
-            ptsAndFlags = PACKET_FLAG_CONFIG; // non-media data packet
-        } else {
-            ptsAndFlags = pts;
-            if (keyFrame) {
-                ptsAndFlags |= PACKET_FLAG_KEY_FRAME;
-            }
+            flags |= 2;
         }
 
-        headerBuffer.putLong(ptsAndFlags);
-        headerBuffer.putInt(packetSize);
+        if (keyFrame) {
+            flags |= 1;
+        }
+
+        headerBuffer.putInt(size);
+        headerBuffer.putInt(isVideo ? MEDIA_STREAM_TYPE_VIDEO : MEDIA_STREAM_TYPE_AUDIO);
+        headerBuffer.putInt(flags);
+        headerBuffer.putLong(pts);
         headerBuffer.flip();
+
         IO.writeFully(fd, headerBuffer);
     }
 
