@@ -84,7 +84,8 @@ public final class Streamer {
         // IO.writeFully(fd, code, 0, code.length);
     }
 
-    public void writePacket(ByteBuffer buffer, long pts, boolean config, boolean keyFrame) throws IOException {
+    public void writePacket(ByteBuffer buffer, MediaCodec.BufferInfo bufferInfo) throws IOException {
+        boolean config = (bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0;
         if (config) {
             if (codec == AudioCodec.OPUS) {
                 fixOpusConfigPacket(buffer);
@@ -94,38 +95,22 @@ public final class Streamer {
         }
 
         if (sendFrameMeta) {
-            writeFrameMeta(fd, buffer.remaining(), pts, config, keyFrame);
+            writeFrameMeta(fd, bufferInfo);
         }
 
         IO.writeFully(fd, buffer);
     }
 
-    public void writePacket(ByteBuffer codecBuffer, MediaCodec.BufferInfo bufferInfo) throws IOException {
-        long pts = bufferInfo.presentationTimeUs;
-        boolean config = (bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0;
-        boolean keyFrame = (bufferInfo.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0;
-        writePacket(codecBuffer, pts, config, keyFrame);
-    }
-
-    private void writeFrameMeta(FileDescriptor fd, int packetSize, long pts, boolean config, boolean keyFrame) throws IOException {
+    private void writeFrameMeta(FileDescriptor fd, MediaCodec.BufferInfo bufferInfo) throws IOException {
         headerBuffer.clear();
 
-        int flags = 0;
-        int size = packetSize + 13;
+        int size = bufferInfo.size + 13;
         boolean isVideo = codec == VideoCodec.AV1 || codec == VideoCodec.H264 || codec == VideoCodec.H265;
-
-        if (config) {
-            flags += 2;
-        }
-
-        if (keyFrame) {
-            flags += 1;
-        }
 
         headerBuffer.putInt(size);
         headerBuffer.put(isVideo ? (byte)MEDIA_STREAM_TYPE_VIDEO : (byte)MEDIA_STREAM_TYPE_AUDIO);
-        headerBuffer.putInt(flags);
-        headerBuffer.putLong(pts);
+        headerBuffer.putInt(bufferInfo.flags);
+        headerBuffer.putLong(bufferInfo.presentationTimeUs);
         headerBuffer.flip();
 
         IO.writeFully(fd, headerBuffer);
