@@ -18,8 +18,6 @@ public final class DesktopConnection implements Closeable {
 
     private static final int DEVICE_NAME_FIELD_LENGTH = 64;
 
-    private static final String SOCKET_NAME_PREFIX = "scrcpy";
-
     private final LocalSocket videoSocket;
     private final FileDescriptor videoFd;
 
@@ -47,25 +45,15 @@ public final class DesktopConnection implements Closeable {
         return localSocket;
     }
 
-    private static String getSocketName(int scid) {
-        if (scid == -1) {
-            // If no SCID is set, use "scrcpy" to simplify using scrcpy-server alone
-            return SOCKET_NAME_PREFIX;
-        }
-
-        return SOCKET_NAME_PREFIX + String.format("_%08x", scid);
-    }
-
     public static DesktopConnection open(int scid, boolean tunnelForward, boolean video, boolean audio, boolean control, boolean sendDummyByte)
             throws IOException {
-        String socketName = getSocketName(scid);
-
         LocalSocket videoSocket = null;
         LocalSocket audioSocket = null;
         LocalSocket controlSocket = null;
+
         try {
             if (tunnelForward) {
-                try (LocalServerSocket localServerSocket = new LocalServerSocket(socketName)) {
+                try (LocalServerSocket localServerSocket = new LocalServerSocket("scrcpy")) {
                     if (video) {
                         videoSocket = localServerSocket.accept();
                         if (sendDummyByte) {
@@ -93,15 +81,15 @@ public final class DesktopConnection implements Closeable {
                 }
             } else {
                 if (video) {
-                    videoSocket = connect(socketName + "_media");
+                    videoSocket = connect("scrcpy-media");
                 }
 
                 if (audio) {
-                    audioSocket = connect(socketName + "_media");
+                    audioSocket = connect("scrcpy-media");
                 }
 
                 if (control) {
-                    controlSocket = connect(socketName + "_controler");
+                    controlSocket = connect("scrcpy-controler");
                 }
             }
         } catch (IOException | RuntimeException e) {
@@ -124,7 +112,19 @@ public final class DesktopConnection implements Closeable {
     }
 
     private LocalSocket getFirstSocket() {
-        return controlSocket;
+        if (controlSocket != null) {
+            return controlSocket;
+        }
+
+        if (videoSocket != null) {
+            return videoSocket;
+        }
+
+        if (audioSocket != null) {
+            return audioSocket;
+        }
+
+        return null;
     }
 
     public void shutdown() throws IOException {

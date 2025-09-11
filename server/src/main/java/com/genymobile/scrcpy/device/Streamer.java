@@ -1,5 +1,6 @@
 package com.genymobile.scrcpy.device;
 
+import com.genymobile.scrcpy.Options;
 import com.genymobile.scrcpy.audio.AudioCodec;
 import com.genymobile.scrcpy.util.Codec;
 import com.genymobile.scrcpy.util.IO;
@@ -27,11 +28,13 @@ public final class Streamer {
     private final Codec codec;
     private final boolean sendCodecMeta;
     private final boolean sendFrameMeta;
+    private final int scid;
 
-    private final ByteBuffer headerBuffer = ByteBuffer.allocate(17);
+    private final ByteBuffer headerBuffer = ByteBuffer.allocate(21);
 
-    public Streamer(FileDescriptor fd, Codec codec, boolean sendCodecMeta, boolean sendFrameMeta) {
+    public Streamer(int scid, FileDescriptor fd, Codec codec, boolean sendCodecMeta, boolean sendFrameMeta) {
         this.fd = fd;
+        this.scid = scid;
         this.codec = codec;
         this.sendCodecMeta = sendCodecMeta;
         this.sendFrameMeta = sendFrameMeta;
@@ -43,8 +46,9 @@ public final class Streamer {
 
     public void writeAudioHeader(int sampleBits, int sampleRate, int channels) throws IOException {
         if (sendCodecMeta) {
-            ByteBuffer buffer = ByteBuffer.allocate(21);
-            buffer.putInt(17);
+            ByteBuffer buffer = ByteBuffer.allocate(25);
+            buffer.putInt(21);
+            buffer.putInt(scid);
             buffer.put((byte) MEDIA_STREAM_TYPE_AUDIO_METADATA);
             buffer.putInt(codec.getRawId());
             buffer.putInt(sampleBits);
@@ -57,8 +61,9 @@ public final class Streamer {
 
     public void writeVideoHeader(Size videoSize, int bitrate, int framerate, int gopSize) throws IOException {
         if (sendCodecMeta) {
-            ByteBuffer buffer = ByteBuffer.allocate(29);
-            buffer.putInt(25);
+            ByteBuffer buffer = ByteBuffer.allocate(33);
+            buffer.putInt(29);
+            buffer.putInt(scid);
             buffer.put((byte)MEDIA_STREAM_TYPE_VIDEO_METADATA);
             buffer.putInt(codec.getRawId());
             buffer.putInt(bitrate);
@@ -104,10 +109,11 @@ public final class Streamer {
     private void writeFrameMeta(FileDescriptor fd, MediaCodec.BufferInfo bufferInfo) throws IOException {
         headerBuffer.clear();
 
-        int size = bufferInfo.size + 13;
+        int size = bufferInfo.size + 17;
         boolean isVideo = codec == VideoCodec.AV1 || codec == VideoCodec.H264 || codec == VideoCodec.H265;
 
         headerBuffer.putInt(size);
+        headerBuffer.putInt(scid);
         headerBuffer.put(isVideo ? (byte)MEDIA_STREAM_TYPE_VIDEO : (byte)MEDIA_STREAM_TYPE_AUDIO);
         headerBuffer.putInt(bufferInfo.flags);
         headerBuffer.putLong(bufferInfo.presentationTimeUs);
