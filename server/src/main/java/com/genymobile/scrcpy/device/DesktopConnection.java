@@ -1,96 +1,59 @@
 package com.genymobile.scrcpy.device;
 
 import com.genymobile.scrcpy.control.ControlChannel;
-import com.genymobile.scrcpy.util.IO;
 import com.genymobile.scrcpy.util.Ln;
-import com.genymobile.scrcpy.util.StringUtils;
-
-import android.net.LocalServerSocket;
-import android.net.LocalSocket;
-import android.net.LocalSocketAddress;
 
 import java.io.Closeable;
-import java.io.FileDescriptor;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.io.OutputStream;
+import java.net.Socket;
 
 public final class DesktopConnection implements Closeable {
 
     private static final int DEVICE_NAME_FIELD_LENGTH = 64;
 
-    private final LocalSocket videoSocket;
-    private final FileDescriptor videoFd;
+    private final Socket videoSocket;
+    private final OutputStream videoStream;
 
-    private final LocalSocket audioSocket;
-    private final FileDescriptor audioFd;
+    private final Socket audioSocket;
+    private final OutputStream audioStream;
 
-    private final LocalSocket controlSocket;
+    private final Socket controlSocket;
     private final ControlChannel controlChannel;
 
-    private DesktopConnection(LocalSocket videoSocket, LocalSocket audioSocket, LocalSocket controlSocket) throws IOException {
+    private DesktopConnection(Socket videoSocket, Socket audioSocket, Socket controlSocket) throws IOException {
         this.videoSocket = videoSocket;
         this.audioSocket = audioSocket;
         this.controlSocket = controlSocket;
 
-        videoFd = videoSocket != null ? videoSocket.getFileDescriptor() : null;
-        audioFd = audioSocket != null ? audioSocket.getFileDescriptor() : null;
+        videoStream = videoSocket != null ? videoSocket.getOutputStream() : null;
+        audioStream = audioSocket != null ? audioSocket.getOutputStream() : null;
         controlChannel = controlSocket != null ? new ControlChannel(controlSocket) : null;
     }
 
-    private static LocalSocket connect(String abstractName) throws IOException {
-        Ln.i("connectin to " + abstractName);
+    private static Socket connect(int port) throws IOException {
+        Ln.i("connectin to " + port);
 
-        LocalSocket localSocket = new LocalSocket();
-        localSocket.connect(new LocalSocketAddress(abstractName));
-        return localSocket;
+        return new Socket("127.0.0.1", port);
     }
 
-    public static DesktopConnection open(int scid, boolean tunnelForward, boolean video, boolean audio, boolean control, boolean sendDummyByte)
+    public static DesktopConnection open(int controlerPort, int mediaPort, boolean video, boolean audio, boolean control, boolean sendDummyByte)
             throws IOException {
-        LocalSocket videoSocket = null;
-        LocalSocket audioSocket = null;
-        LocalSocket controlSocket = null;
+        Socket videoSocket = null;
+        Socket audioSocket = null;
+        Socket controlSocket = null;
 
         try {
-            if (tunnelForward) {
-                try (LocalServerSocket localServerSocket = new LocalServerSocket("scrcpy")) {
-                    if (video) {
-                        videoSocket = localServerSocket.accept();
-                        if (sendDummyByte) {
-                            // send one byte so the client may read() to detect a connection error
-                            videoSocket.getOutputStream().write(0);
-                            sendDummyByte = false;
-                        }
-                    }
-                    if (audio) {
-                        audioSocket = localServerSocket.accept();
-                        if (sendDummyByte) {
-                            // send one byte so the client may read() to detect a connection error
-                            audioSocket.getOutputStream().write(0);
-                            sendDummyByte = false;
-                        }
-                    }
-                    if (control) {
-                        controlSocket = localServerSocket.accept();
-                        if (sendDummyByte) {
-                            // send one byte so the client may read() to detect a connection error
-                            controlSocket.getOutputStream().write(0);
-                            sendDummyByte = false;
-                        }
-                    }
-                }
-            } else {
-                if (video) {
-                    videoSocket = connect("scrcpy-media");
-                }
+            if (video) {
+                videoSocket = connect(mediaPort);
+            }
 
-                if (audio) {
-                    audioSocket = connect("scrcpy-media");
-                }
+            if (audio) {
+                audioSocket = connect(mediaPort);
+            }
 
-                if (control) {
-                    controlSocket = connect("scrcpy-controler");
-                }
+            if (control) {
+                controlSocket = connect(controlerPort);
             }
         } catch (IOException | RuntimeException e) {
             if (videoSocket != null) {
@@ -111,7 +74,7 @@ public final class DesktopConnection implements Closeable {
         return new DesktopConnection(videoSocket, audioSocket, controlSocket);
     }
 
-    private LocalSocket getFirstSocket() {
+    private Socket getFirstSocket() {
         if (controlSocket != null) {
             return controlSocket;
         }
@@ -154,24 +117,12 @@ public final class DesktopConnection implements Closeable {
         }
     }
 
-    public void sendDeviceMeta(String deviceName) throws IOException {
-        byte[] buffer = new byte[DEVICE_NAME_FIELD_LENGTH];
-
-        byte[] deviceNameBytes = deviceName.getBytes(StandardCharsets.UTF_8);
-        int len = StringUtils.getUtf8TruncationIndex(deviceNameBytes, DEVICE_NAME_FIELD_LENGTH - 1);
-        System.arraycopy(deviceNameBytes, 0, buffer, 0, len);
-        // byte[] are always 0-initialized in java, no need to set '\0' explicitly
-
-        FileDescriptor fd = getFirstSocket().getFileDescriptor();
-        IO.writeFully(fd, buffer, 0, buffer.length);
+    public OutputStream getVideoStream() {
+        return videoStream;
     }
 
-    public FileDescriptor getVideoFd() {
-        return videoFd;
-    }
-
-    public FileDescriptor getAudioFd() {
-        return audioFd;
+    public OutputStream getAudioStream() {
+        return audioStream;
     }
 
     public ControlChannel getControlChannel() {

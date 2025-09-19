@@ -91,7 +91,8 @@ public final class Server {
         }
 
         int scid = options.getScid();
-        boolean tunnelForward = options.isTunnelForward();
+        int controlerPort = options.getControlerPort();
+        int mediaPort = options.getMediaPort();
         boolean control = options.getControl();
         boolean video = options.getVideo();
         boolean audio = options.getAudio();
@@ -103,12 +104,8 @@ public final class Server {
 
         List<AsyncProcessor> asyncProcessors = new ArrayList<>();
 
-        DesktopConnection connection = DesktopConnection.open(scid, tunnelForward, video, audio, control, sendDummyByte);
+        DesktopConnection connection = DesktopConnection.open(controlerPort, mediaPort, video, audio, control, sendDummyByte);
         try {
-            if (options.getSendDeviceMeta()) {
-                connection.sendDeviceMeta(Device.getDeviceName());
-            }
-
             Controller controller = null;
 
             if (control) {
@@ -127,7 +124,7 @@ public final class Server {
                     audioCapture = new AudioPlaybackCapture(options.getAudioDup());
                 }
 
-                Streamer audioStreamer = new Streamer(options.getScid(), connection.getAudioFd(), audioCodec, options.getSendCodecMeta(), options.getSendFrameMeta());
+                Streamer audioStreamer = new Streamer(options.getScid(), connection.getAudioStream(), audioCodec, options.getSendCodecMeta(), options.getSendFrameMeta());
                 AsyncProcessor audioRecorder;
                 if (audioCodec == AudioCodec.RAW) {
                     audioRecorder = new AudioRawRecorder(audioCapture, audioStreamer);
@@ -138,7 +135,7 @@ public final class Server {
             }
 
             if (video) {
-                Streamer videoStreamer = new Streamer(options.getScid(), connection.getVideoFd(), options.getVideoCodec(), options.getSendCodecMeta(),
+                Streamer videoStreamer = new Streamer(options.getScid(), connection.getVideoStream(), options.getVideoCodec(), options.getSendCodecMeta(),
                         options.getSendFrameMeta());
                 SurfaceCapture surfaceCapture;
                 if (options.getVideoSource() == VideoSource.DISPLAY) {

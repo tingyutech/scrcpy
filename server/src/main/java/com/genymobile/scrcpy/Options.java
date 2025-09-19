@@ -81,6 +81,13 @@ public class Options {
     private boolean sendDummyByte = true; // write a byte on start to detect connection issues
     private boolean sendCodecMeta = true; // write the codec metadata before the stream
 
+    private int controlerPort = 0;
+    private int mediaPort = 0;
+
+    public int getControlerPort() { return controlerPort; }
+
+    public int getMediaPort() { return mediaPort; }
+
     public Ln.Level getLogLevel() {
         return logLevel;
     }
@@ -361,6 +368,12 @@ public class Options {
                     break;
                 case "max_size":
                     options.maxSize = Integer.parseInt(value) & ~7; // multiple of 8
+                    break;
+                case "controler_port":
+                    options.controlerPort = Integer.parseInt(value);
+                    break;
+                case "media_port":
+                    options.mediaPort = Integer.parseInt(value);
                     break;
                 case "video_bit_rate":
                     options.videoBitRate = Integer.parseInt(value);
