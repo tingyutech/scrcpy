@@ -17,6 +17,7 @@ import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.view.Surface;
@@ -117,7 +118,9 @@ public class SurfaceEncoder implements AsyncProcessor {
                         // Do not retry on broken pipe, which is expected on close because the socket is closed by the client
                         throw e;
                     }
+
                     Ln.e("Capture/encoding error: " + e.getClass().getName() + ": " + e.getMessage());
+
                     if (!prepareRetry(size)) {
                         throw e;
                     }
@@ -190,6 +193,7 @@ public class SurfaceEncoder implements AsyncProcessor {
                 return value;
             }
         }
+
         // No fallback, fail definitively
         return 0;
     }
@@ -200,6 +204,7 @@ public class SurfaceEncoder implements AsyncProcessor {
         boolean eos;
         do {
             int outputBufferId = codec.dequeueOutputBuffer(bufferInfo, -1);
+
             try {
                 eos = (bufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
                 // On EOS, there might be data or not, depending on bufferInfo.size
@@ -214,6 +219,12 @@ public class SurfaceEncoder implements AsyncProcessor {
                     }
 
                     streamer.writePacket(codecBuffer, bufferInfo);
+
+                    if (streamer.isKeyFrameRequest()) {
+                        Bundle params = new Bundle();
+                        params.putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0);
+                        codec.setParameters(params);
+                    }
                 }
             } finally {
                 if (outputBufferId >= 0) {
@@ -226,29 +237,38 @@ public class SurfaceEncoder implements AsyncProcessor {
     private static MediaCodec createMediaCodec(Codec codec, String encoderName) throws IOException, ConfigurationException {
         if (encoderName != null) {
             Ln.d("Creating encoder by name: '" + encoderName + "'");
+
             try {
                 MediaCodec mediaCodec = MediaCodec.createByCodecName(encoderName);
                 String mimeType = Codec.getMimeType(mediaCodec);
+
                 if (!codec.getMimeType().equals(mimeType)) {
                     Ln.e("Video encoder type for \"" + encoderName + "\" (" + mimeType + ") does not match codec type (" + codec.getMimeType() + ")");
+
                     throw new ConfigurationException("Incorrect encoder type: " + encoderName);
                 }
+
                 return mediaCodec;
             } catch (IllegalArgumentException e) {
                 Ln.e("Video encoder '" + encoderName + "' for " + codec.getName() + " not found\n" + LogUtils.buildVideoEncoderListMessage());
+
                 throw new ConfigurationException("Unknown encoder: " + encoderName);
             } catch (IOException e) {
                 Ln.e("Could not create video encoder '" + encoderName + "' for " + codec.getName() + "\n" + LogUtils.buildVideoEncoderListMessage());
+
                 throw e;
             }
         }
 
         try {
             MediaCodec mediaCodec = MediaCodec.createEncoderByType(codec.getMimeType());
+
             Ln.d("Using video encoder: '" + mediaCodec.getName() + "'");
+
             return mediaCodec;
         } catch (IOException | IllegalArgumentException e) {
             Ln.e("Could not create default video encoder for " + codec.getName() + "\n" + LogUtils.buildVideoEncoderListMessage());
+
             throw e;
         }
     }
@@ -278,6 +298,7 @@ public class SurfaceEncoder implements AsyncProcessor {
                 String key = option.getKey();
                 Object value = option.getValue();
                 CodecUtils.setCodecOption(format, key, value);
+
                 Ln.d("Video codec option set: " + key + " (" + value.getClass().getSimpleName() + ") = " + value);
             }
         }
@@ -303,9 +324,11 @@ public class SurfaceEncoder implements AsyncProcessor {
                 }
             } finally {
                 Ln.d("Screen streaming stopped");
+
                 listener.onTerminated(true);
             }
         }, "video");
+
         thread.start();
     }
 

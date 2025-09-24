@@ -13,10 +13,8 @@ public final class DesktopConnection implements Closeable {
     private static final int DEVICE_NAME_FIELD_LENGTH = 64;
 
     private final Socket videoSocket;
-    private final OutputStream videoStream;
 
     private final Socket audioSocket;
-    private final OutputStream audioStream;
 
     private final Socket controlSocket;
     private final ControlChannel controlChannel;
@@ -26,8 +24,6 @@ public final class DesktopConnection implements Closeable {
         this.audioSocket = audioSocket;
         this.controlSocket = controlSocket;
 
-        videoStream = videoSocket != null ? videoSocket.getOutputStream() : null;
-        audioStream = audioSocket != null ? audioSocket.getOutputStream() : null;
         controlChannel = controlSocket != null ? new ControlChannel(controlSocket) : null;
     }
 
@@ -117,12 +113,12 @@ public final class DesktopConnection implements Closeable {
         }
     }
 
-    public OutputStream getVideoStream() {
-        return videoStream;
+    public Socket getVideoSocket() {
+        return videoSocket;
     }
 
-    public OutputStream getAudioStream() {
-        return audioStream;
+    public Socket getAudioSocket() {
+        return audioSocket;
     }
 
     public ControlChannel getControlChannel() {

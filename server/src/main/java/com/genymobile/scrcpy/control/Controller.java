@@ -360,6 +360,7 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
                 return false;
             }
         }
+        
         return true;
     }
 

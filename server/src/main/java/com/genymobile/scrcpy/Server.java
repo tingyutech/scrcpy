@@ -124,7 +124,7 @@ public final class Server {
                     audioCapture = new AudioPlaybackCapture(options.getAudioDup());
                 }
 
-                Streamer audioStreamer = new Streamer(options.getScid(), connection.getAudioStream(), audioCodec, options.getSendCodecMeta(), options.getSendFrameMeta());
+                Streamer audioStreamer = new Streamer(options.getScid(), connection.getAudioSocket(), audioCodec, options.getSendCodecMeta(), options.getSendFrameMeta());
                 AsyncProcessor audioRecorder;
                 if (audioCodec == AudioCodec.RAW) {
                     audioRecorder = new AudioRawRecorder(audioCapture, audioStreamer);
@@ -135,7 +135,7 @@ public final class Server {
             }
 
             if (video) {
-                Streamer videoStreamer = new Streamer(options.getScid(), connection.getVideoStream(), options.getVideoCodec(), options.getSendCodecMeta(),
+                Streamer videoStreamer = new Streamer(options.getScid(), connection.getVideoSocket(), options.getVideoCodec(), options.getSendCodecMeta(),
                         options.getSendFrameMeta());
                 SurfaceCapture surfaceCapture;
                 if (options.getVideoSource() == VideoSource.DISPLAY) {

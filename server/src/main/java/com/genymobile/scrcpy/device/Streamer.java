@@ -3,12 +3,16 @@ package com.genymobile.scrcpy.device;
 import com.genymobile.scrcpy.audio.AudioCodec;
 import com.genymobile.scrcpy.util.Codec;
 import com.genymobile.scrcpy.util.IO;
+import com.genymobile.scrcpy.util.Ln;
 import com.genymobile.scrcpy.video.VideoCodec;
 
 import android.media.MediaCodec;
+import android.os.Looper;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
@@ -16,7 +20,7 @@ import java.util.Arrays;
 public final class Streamer {
 
     private static final long PACKET_FLAG_CONFIG = 1L << 63;
-    private static final long PACKET_FLAG_KEY_FRAME = 1L << 62;
+    private static final byte KEY_FRAME_REQUEST = 1;
     private static final int MEDIA_STREAM_TYPE_VIDEO = 0;
     private static final int MEDIA_STREAM_TYPE_VIDEO_METADATA = 1;
     private static final int MEDIA_STREAM_TYPE_AUDIO = 2;
@@ -27,15 +31,47 @@ public final class Streamer {
     private final boolean sendCodecMeta;
     private final boolean sendFrameMeta;
     private final int scid;
-
     private final ByteBuffer headerBuffer = ByteBuffer.allocate(21);
+    private final Thread thread;
+    private boolean keyFrameRequest = false;
 
-    public Streamer(int scid, OutputStream stream, Codec codec, boolean sendCodecMeta, boolean sendFrameMeta) {
-        this.stream = stream;
+    public Streamer(int scid, Socket stream, Codec codec, boolean sendCodecMeta, boolean sendFrameMeta) throws IOException {
+        this.stream = stream.getOutputStream();
         this.scid = scid;
         this.codec = codec;
         this.sendCodecMeta = sendCodecMeta;
         this.sendFrameMeta = sendFrameMeta;
+
+        InputStream inputStream = stream.getInputStream();
+        thread = new Thread(() -> {
+            try {
+                byte[] buffer = new byte[1024];
+                int len;
+
+                while ((len = inputStream.read(buffer)) != -1) {
+                    ByteBuffer payload = ByteBuffer.wrap(buffer, 0, len);
+
+                    byte ty = payload.get();
+                    if (ty == KEY_FRAME_REQUEST) {
+                        keyFrameRequest = true;
+                    }
+                }
+            } catch (Exception e) {
+                Ln.e("streamer read error: " + e.getMessage());
+            }
+        }, "streamer");
+
+        thread.start();
+    }
+
+    public boolean isKeyFrameRequest() {
+        if (keyFrameRequest) {
+            keyFrameRequest = false;
+
+            return true;
+        } else {
+            return false;
+        }
     }
 
     public Codec getCodec() {
