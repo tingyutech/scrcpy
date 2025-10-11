@@ -4,6 +4,7 @@ import com.genymobile.scrcpy.device.Device;
 import com.genymobile.scrcpy.util.StringUtils;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -24,48 +25,57 @@ public class DeviceMessageWriter {
 
     public void write(DeviceMessage msg) throws IOException {
         int type = msg.getType();
-        dos.writeByte(type);
+        
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        DataOutputStream tempDos = new DataOutputStream(buffer);
+        
         switch (type) {
             case DeviceMessage.TYPE_CLIPBOARD:
                 String text = msg.getText();
                 byte[] raw = text.getBytes(StandardCharsets.UTF_8);
                 int len = StringUtils.getUtf8TruncationIndex(raw, CLIPBOARD_TEXT_MAX_LENGTH);
-                dos.writeInt(len);
-                dos.write(raw, 0, len);
+                tempDos.writeInt(len);
+                tempDos.write(raw, 0, len);
                 break;
             case DeviceMessage.TYPE_ACK_CLIPBOARD:
-                dos.writeLong(msg.getSequence());
+                tempDos.writeLong(msg.getSequence());
                 break;
             case DeviceMessage.TYPE_UHID_OUTPUT:
-                dos.writeShort(msg.getId());
+                tempDos.writeShort(msg.getId());
                 byte[] data = msg.getData();
-                dos.writeShort(data.length);
-                dos.write(data);
+                tempDos.writeShort(data.length);
+                tempDos.write(data);
                 break;
             case DeviceMessage.TYPE_GET_APP_LIST_PAYLOAD:
                 List<Device.AppInfo> apps = msg.getApps();
 
-                dos.writeInt(msg.getId());
-                dos.writeInt(apps.size());
+                tempDos.writeInt(msg.getId());
+                tempDos.writeInt(apps.size());
 
                 for (int i = 0; i < apps.size(); i ++) {
                     Device.AppInfo info = apps.get(i);
 
-                    dos.writeByte(info.isVisible ? 1 : 0);
+                    tempDos.writeByte(info.isVisible ? 1 : 0);
 
                     byte[] rawAppName = info.appName.getBytes(StandardCharsets.UTF_8);
-                    dos.writeInt(rawAppName.length);
-                    dos.write(rawAppName);
+                    tempDos.writeInt(rawAppName.length);
+                    tempDos.write(rawAppName);
 
                     byte[] rawPackageName = info.packageName.getBytes(StandardCharsets.UTF_8);
-                    dos.writeInt(rawPackageName.length);
-                    dos.write(rawPackageName);
+                    tempDos.writeInt(rawPackageName.length);
+                    tempDos.write(rawPackageName);
                 }
 
                 break;
             default:
                 throw new ControlProtocolException("Unknown event type: " + type);
         }
+        
+        byte[] content = buffer.toByteArray();
+        
+        dos.writeInt(content.length);
+        dos.writeByte(type);
+        dos.write(content);
         dos.flush();
     }
 }
