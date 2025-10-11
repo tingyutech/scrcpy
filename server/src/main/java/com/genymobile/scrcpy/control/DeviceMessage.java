@@ -1,16 +1,22 @@
 package com.genymobile.scrcpy.control;
 
+import com.genymobile.scrcpy.device.Device;
+
+import java.util.List;
+
 public final class DeviceMessage {
 
     public static final int TYPE_CLIPBOARD = 0;
     public static final int TYPE_ACK_CLIPBOARD = 1;
     public static final int TYPE_UHID_OUTPUT = 2;
+    public static final int TYPE_GET_APP_LIST_PAYLOAD = 3;
 
     private int type;
     private String text;
     private long sequence;
     private int id;
     private byte[] data;
+    private List<Device.AppInfo> apps;
 
     private DeviceMessage() {
     }
@@ -37,6 +43,14 @@ public final class DeviceMessage {
         return event;
     }
 
+    public static DeviceMessage createGetAppListPayload(int id, List<Device.AppInfo> apps) {
+        DeviceMessage event = new DeviceMessage();
+        event.type = TYPE_GET_APP_LIST_PAYLOAD;
+        event.id = id;
+        event.apps = apps;
+        return event;
+    }
+
     public int getType() {
         return type;
     }
@@ -55,5 +69,9 @@ public final class DeviceMessage {
 
     public byte[] getData() {
         return data;
+    }
+
+    public List<Device.AppInfo> getApps() {
+        return apps;
     }
 }

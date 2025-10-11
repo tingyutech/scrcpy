@@ -16,6 +16,7 @@ import android.content.Intent;
 import android.app.ActivityOptions;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -26,8 +27,10 @@ import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public final class Device {
 
@@ -310,6 +313,46 @@ public final class Device {
         if (forceStop) {
             am.forceStopPackage(packageName);
         }
+
         am.startActivity(launchIntent, options);
+    }
+
+    public static class AppInfo {
+        public boolean isVisible;
+        public String packageName;
+        public String appName;
+    }
+
+    public static List<AppInfo> getApps() {
+        PackageManager pm = FakeContext.get().getPackageManager();
+
+        Intent intent = new Intent(Intent.ACTION_MAIN, null);
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+
+        @SuppressLint("QueryPermissionsNeeded")
+        List<ResolveInfo> launchables = pm.queryIntentActivities(intent, 0);
+
+        Set<String> visiblePackages = new HashSet<>();
+        for (ResolveInfo info : launchables) {
+            visiblePackages.add(info.activityInfo.packageName);
+        }
+
+        @SuppressLint("QueryPermissionsNeeded")
+        List<ApplicationInfo> apps = pm.getInstalledApplications(0);
+        List<AppInfo> result = new ArrayList<>();
+
+        for (ApplicationInfo app : apps) {
+            boolean isVisible = visiblePackages.contains(app.packageName);
+            String appName = pm.getApplicationLabel(app).toString();
+
+            AppInfo info = new AppInfo();
+            info.isVisible = isVisible;
+            info.appName = appName;
+            info.packageName = app.packageName;
+
+            result.add(info);
+        }
+
+        return result;
     }
 }

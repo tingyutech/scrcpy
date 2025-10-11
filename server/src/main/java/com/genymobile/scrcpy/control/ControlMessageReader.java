@@ -56,6 +56,8 @@ public class ControlMessageReader {
                 return parseUhidDestroy();
             case ControlMessage.TYPE_START_APP:
                 return parseStartApp();
+            case ControlMessage.TYPE_GET_APP_LIST:
+                return parseGetAppList();
             default:
                 throw new ControlProtocolException("Unknown event type: " + type);
         }
@@ -172,5 +174,10 @@ public class ControlMessageReader {
         int screenWidth = dis.readUnsignedShort();
         int screenHeight = dis.readUnsignedShort();
         return new Position(x, y, screenWidth, screenHeight);
+    }
+
+    private ControlMessage parseGetAppList() throws IOException {
+        int id = dis.readInt();
+        return ControlMessage.createGetAppList(id);
     }
 }

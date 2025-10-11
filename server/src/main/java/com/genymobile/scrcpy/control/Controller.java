@@ -1,5 +1,14 @@
 package com.genymobile.scrcpy.control;
 
+import android.content.Intent;
+import android.os.Build;
+import android.os.SystemClock;
+import android.util.Pair;
+import android.view.InputDevice;
+import android.view.KeyCharacterMap;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
+
 import com.genymobile.scrcpy.AndroidVersions;
 import com.genymobile.scrcpy.AsyncProcessor;
 import com.genymobile.scrcpy.CleanUp;
@@ -17,15 +26,6 @@ import com.genymobile.scrcpy.video.VirtualDisplayListener;
 import com.genymobile.scrcpy.wrappers.ClipboardManager;
 import com.genymobile.scrcpy.wrappers.InputManager;
 import com.genymobile.scrcpy.wrappers.ServiceManager;
-
-import android.content.Intent;
-import android.os.Build;
-import android.os.SystemClock;
-import android.util.Pair;
-import android.view.InputDevice;
-import android.view.KeyCharacterMap;
-import android.view.KeyEvent;
-import android.view.MotionEvent;
 
 import java.io.IOException;
 import java.util.List;
@@ -331,6 +331,9 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
             case ControlMessage.TYPE_RESET_VIDEO:
                 resetVideo();
                 break;
+            case ControlMessage.TYPE_GET_APP_LIST:
+                getAppList(msg.getId());
+                break;
             default:
                 // do nothing
         }
@@ -360,7 +363,7 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
                 return false;
             }
         }
-        
+
         return true;
     }
 
@@ -754,5 +757,11 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
             Ln.i("Video capture reset");
             surfaceCapture.requestInvalidate();
         }
+    }
+
+    private void getAppList(int id) {
+        List<Device.AppInfo> apps = Device.getApps();
+        DeviceMessage msg = DeviceMessage.createGetAppListPayload(id, apps);
+        sender.send(msg);
     }
 }

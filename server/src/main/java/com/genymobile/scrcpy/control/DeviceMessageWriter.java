@@ -1,5 +1,6 @@
 package com.genymobile.scrcpy.control;
 
+import com.genymobile.scrcpy.device.Device;
 import com.genymobile.scrcpy.util.StringUtils;
 
 import java.io.BufferedOutputStream;
@@ -7,11 +8,13 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 public class DeviceMessageWriter {
 
     private static final int MESSAGE_MAX_SIZE = 1 << 18; // 256k
     public static final int CLIPBOARD_TEXT_MAX_LENGTH = MESSAGE_MAX_SIZE - 5; // type: 1 byte; length: 4 bytes
+    public static final int APPNAME_TEXT_MAX_LENGTH = CLIPBOARD_TEXT_MAX_LENGTH; // type: 1 byte; length: 4 bytes
 
     private final DataOutputStream dos;
 
@@ -38,6 +41,27 @@ public class DeviceMessageWriter {
                 byte[] data = msg.getData();
                 dos.writeShort(data.length);
                 dos.write(data);
+                break;
+            case DeviceMessage.TYPE_GET_APP_LIST_PAYLOAD:
+                List<Device.AppInfo> apps = msg.getApps();
+
+                dos.writeInt(msg.getId());
+                dos.writeInt(apps.size());
+
+                for (int i = 0; i < apps.size(); i ++) {
+                    Device.AppInfo info = apps.get(i);
+
+                    dos.writeByte(info.isVisible ? 1 : 0);
+
+                    byte[] rawAppName = info.appName.getBytes(StandardCharsets.UTF_8);
+                    dos.writeInt(rawAppName.length);
+                    dos.write(rawAppName);
+
+                    byte[] rawPackageName = info.packageName.getBytes(StandardCharsets.UTF_8);
+                    dos.writeInt(rawPackageName.length);
+                    dos.write(rawPackageName);
+                }
+
                 break;
             default:
                 throw new ControlProtocolException("Unknown event type: " + type);
