@@ -10,6 +10,7 @@ public final class DeviceMessage {
     public static final int TYPE_ACK_CLIPBOARD = 1;
     public static final int TYPE_UHID_OUTPUT = 2;
     public static final int TYPE_GET_APP_LIST_PAYLOAD = 3;
+    public static final int TYPE_DISPLAY_SIZE_CHANGED = 4;
 
     private int type;
     private String text;
@@ -17,6 +18,9 @@ public final class DeviceMessage {
     private int id;
     private byte[] data;
     private List<Device.AppInfo> apps;
+    private int displayId;
+    private int width;
+    private int height;
 
     private DeviceMessage() {
     }
@@ -51,6 +55,15 @@ public final class DeviceMessage {
         return event;
     }
 
+    public static DeviceMessage createDisplaySizeChanged(int displayId, int width, int height) {
+        DeviceMessage event = new DeviceMessage();
+        event.type = TYPE_DISPLAY_SIZE_CHANGED;
+        event.displayId = displayId;
+        event.width = width;
+        event.height = height;
+        return event;
+    }
+
     public int getType() {
         return type;
     }
@@ -74,4 +87,11 @@ public final class DeviceMessage {
     public List<Device.AppInfo> getApps() {
         return apps;
     }
+
+    public int getDisplayId() {
+        return displayId;
+    }
+
+    public int getWidth() { return width; }
+    public int getHeight() { return height; }
 }

@@ -134,6 +134,20 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
                 Ln.w("No clipboard manager, copy-paste between device and computer will not work");
             }
         }
+
+        // Listen for display rotation changes and notify client
+        com.genymobile.scrcpy.wrappers.DisplayManager dm = ServiceManager.getDisplayManager();
+        if (dm != null) {
+            dm.registerDisplayListener(changedDisplayId -> {
+                if (changedDisplayId != displayId) return;
+                com.genymobile.scrcpy.device.DisplayInfo info = ServiceManager.getDisplayManager().getDisplayInfo(displayId);
+                if (info != null) {
+                    com.genymobile.scrcpy.device.Size s = info.getSize();
+                    DeviceMessage msg = DeviceMessage.createDisplaySizeChanged(displayId, s.getWidth(), s.getHeight());
+                    sender.send(msg);
+                }
+            }, null);
+        }
     }
 
     @Override

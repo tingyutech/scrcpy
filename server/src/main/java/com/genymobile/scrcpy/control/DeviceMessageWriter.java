@@ -67,6 +67,11 @@ public class DeviceMessageWriter {
                 }
 
                 break;
+            case DeviceMessage.TYPE_DISPLAY_SIZE_CHANGED:
+                tempDos.writeInt(msg.getDisplayId());
+                tempDos.writeInt(msg.getWidth());
+                tempDos.writeInt(msg.getHeight());
+                break;
             default:
                 throw new ControlProtocolException("Unknown event type: " + type);
         }
